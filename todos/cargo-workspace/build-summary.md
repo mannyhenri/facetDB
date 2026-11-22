@@ -1,6 +1,6 @@
 # Build summary: cargo-workspace (pre-merge verification)
 
-Branch `feature/cargo-workspace`, verified at `49aa88c`.
+Branch `feature/cargo-workspace`, verified before the PR squash (pre-squash head `49aa88c`; its changes are now in `733bd3e`).
 
 - Tests: 15 passing / 0 failing
   - `cargo test --workspace`: 7 unit tests pass (one each in facet-core, -log, -delta, -planner, -engine, -check, -bench); facet-layouts has no tests by design; 0 doc tests.
@@ -16,7 +16,7 @@ Branch `feature/cargo-workspace`, verified at `49aa88c`.
   - `acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` (locked, unchanged since `3c6678f`)
   - `docs/cargo-workspace/plan.md`
 - Deviations from plan:
-  - Steps 1-8 were committed together in `394ff80` rather than as per-step WIP commits.
-  - rustfmt gives the four empty layouts modules a single trailing newline (`96a59ce`).
+  - Steps 1-8 were committed together in `733bd3e` rather than as per-step WIP commits.
+  - rustfmt gives the four empty layouts modules a single trailing newline (squashed into `733bd3e`).
   - `crates/bench/benches/placeholder.rs` was added: the plan's placeholder `[[bench]]` target needs a source file.
   - Crate doc comments are written from the scope brief and vision, because build spec section 3 is not in the repo.
