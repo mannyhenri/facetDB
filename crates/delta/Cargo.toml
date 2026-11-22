@@ -1,0 +1,11 @@
+[package]
+name = "facet-delta"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+facet-core = { path = "../core" }
+facet-log = { path = "../log" }
+
+[dev-dependencies]
+proptest.workspace = true

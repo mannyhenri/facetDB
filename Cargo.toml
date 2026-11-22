@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/log",
+    "crates/delta",
+    "crates/layouts",
+    "crates/planner",
+    "crates/engine",
+    "crates/check",
+    "crates/bench",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+[workspace.dependencies]
+criterion = "0.5"
+proptest = "1"

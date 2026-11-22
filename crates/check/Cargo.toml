@@ -1,0 +1,12 @@
+[package]
+name = "facet-check"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+facet-core = { path = "../core" }
+facet-engine = { path = "../engine" }
+facet-log = { path = "../log" }
+
+[dev-dependencies]
+proptest.workspace = true

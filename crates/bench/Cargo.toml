@@ -1,0 +1,15 @@
+[package]
+name = "facet-bench"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+facet-core = { path = "../core" }
+facet-engine = { path = "../engine" }
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "placeholder"
+harness = false

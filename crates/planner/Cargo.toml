@@ -1,0 +1,8 @@
+[package]
+name = "facet-planner"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+facet-core = { path = "../core" }
+facet-layouts = { path = "../layouts" }

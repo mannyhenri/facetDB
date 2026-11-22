@@ -1,0 +1,11 @@
+[package]
+name = "facet-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+facet-core = { path = "../core" }
+facet-log = { path = "../log" }
+facet-delta = { path = "../delta" }
+facet-layouts = { path = "../layouts" }
+facet-planner = { path = "../planner" }
