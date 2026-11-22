@@ -30,3 +30,33 @@ Facet stores every change once in an ordered log and maintains several physical 
 - `PROGRESS.md` content belongs to the "Progress tracking in PROGRESS.md" feature; `REPORT.md` to "Benchmark report".
 - `crates/layouts/src/contract.rs` stays empty until the "Layout contract" feature (Phase 3).
 - Files under `acceptance/` are locked acceptance tests: never edit them.
+
+## Patterns to repeat
+
+- **Set-based acceptance tests from `cargo metadata`.** Use `cargo metadata --format-version 1 --no-deps` as the oracle (needs no network) and assert *exact* sets with deep equality: member list, each crate's internal dependencies, dev-dependencies. A test that lists every member fails on a partial fix; one that checks a couple of examples does not.
+- **Prove a test before locking it.** Before submitting an acceptance test, run it against a throwaway reference implementation in a scratch directory (must pass) and a deliberately broken copy (must fail). Locked tests can never be edited, so bugs found later cannot be fixed.
+- **Run the full check set at the end of every build stage:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace`, `cargo test --workspace`, the acceptance commands, and `cargo tree --workspace -e normal,dev` for forbidden crates.
+
+## Anti-patterns (and how to spot them early)
+
+- **Reading `cargo test` output from separate streams.** `Running unittests …` goes to stderr and `test result:` to stdout; concatenating them breaks the pairing. Signal: a per-crate output parser fails although every test passed. Fix: run `sh -c 'cargo test --workspace 2>&1'`.
+- **Zero-byte `.rs` files.** rustfmt wants a trailing newline, so `cargo fmt --check` fails. Signal: fmt diffs on files you never edited. Give empty modules a single newline.
+- **Dead `[workspace.dependencies]` entries.** `facet-check` was declared although no crate depends on it. Signal: an entry with no `.workspace = true` user. Check with `grep -r 'facet-x.workspace' crates/` before adding.
+- **Duplicate status docs.** A second build summary went stale within one stage and the review had to remove it. Keep one build summary per feature (`todos/<slug>/build-summary.md`) and update it in place.
+- **Unchecked `file:line` citations.** A cited range ran past the end of the file. Signal: any citation written from memory. Check with `wc -l` / `sed -n` before committing docs.
+- **`git worktree add ../<slug>-work feature/<slug>` from the CE templates** fails when the pipeline already runs in a worktree on that branch. Check `git worktree list` first and reuse the existing worktree.
+
+## Taste decisions
+
+- `facet-<dir>` package names with spec directory names unchanged: avoids the `core`/`log` clashes without diverging from the spec layout.
+- Internal crates are inherited from `[workspace.dependencies]` (like external ones) rather than per-crate `path = "../x"`, so each manifest has one style and adding an edge is a one-line change.
+- `Cargo.lock` is committed: the workspace builds benches and is an application, not a published library.
+- Placeholder unit tests are named `crate_builds`; the layouts modules are `pub mod`, ordered alphabetically in `lib.rs`.
+- Acceptance tests use Node's built-in test runner (`node --test`, no npm dependencies) under `acceptance/<slug>/`, because the repo has no other test harness for cross-crate contracts.
+
+## Caveats
+
+- Build spec section 3 (crate responsibilities) is **not in the repo**. Crate doc comments in `crates/*/src/lib.rs` were written from the scope brief and still need a human check against the spec. Do not treat them as authoritative.
+- The first `cargo test`/`cargo bench` on a fresh machine downloads criterion and proptest from crates.io; acceptance tests that run cargo are not offline until the cache is warm.
+- `PROGRESS.md` must stay title-only until the "Progress tracking in PROGRESS.md" feature, even where a brief says "record decisions in PROGRESS.md". Record them in `todos/<slug>/` or `docs/solutions/` meanwhile.
+- Pipeline instructions can conflict (e.g. "NeonCore opens the PR" vs a step that says to open it). Follow the specific step, and name the conflict in the report.
