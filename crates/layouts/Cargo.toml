@@ -4,5 +4,5 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-facet-core = { path = "../core" }
-facet-delta = { path = "../delta" }
+facet-core.workspace = true
+facet-delta.workspace = true

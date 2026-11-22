@@ -4,8 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-facet-core = { path = "../core" }
-facet-log = { path = "../log" }
+facet-core.workspace = true
+facet-log.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

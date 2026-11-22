@@ -14,7 +14,7 @@ Branch `feature/cargo-workspace`, verified at `49aa88c`.
   - `crates/layouts/src/{row,column,vector,contract}.rs`
   - `crates/bench/benches/placeholder.rs`
   - `acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` (locked, unchanged since `3c6678f`)
-  - `docs/cargo-workspace/plan.md`, `docs/cargo-workspace/build-summary.md`
+  - `docs/cargo-workspace/plan.md`
 - Deviations from plan:
   - Steps 1-8 were committed together in `394ff80` rather than as per-step WIP commits.
   - rustfmt gives the four empty layouts modules a single trailing newline (`96a59ce`).

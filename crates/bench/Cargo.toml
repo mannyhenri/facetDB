@@ -4,8 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-facet-core = { path = "../core" }
-facet-engine = { path = "../engine" }
+facet-core.workspace = true
+facet-engine.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
