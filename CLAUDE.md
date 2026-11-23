@@ -21,7 +21,7 @@ Facet stores every change once in an ordered log and maintains several physical 
 
 ## Core types
 
-- Shared types live in `crates/core/src/` (one private module per type) and are re-exported from `lib.rs`: import them as `facet_core::{Lsn, Value, DataType, ColId, Column, Schema, Row, ChangeBatch, ColumnBatch, ColumnData, Bitmap, BATCH_ROWS}`. Never use a module path.
+- Shared types live in `crates/core/src/` (one private module per type) and are re-exported from `lib.rs`: import them as `facet_core::{Lsn, Value, DataType, ColId, Column, Schema, Row, ChangeBatch, ColumnBatch, ColumnData, Bitmap, BATCH_ROWS}`. Never use a module path, except the public `facet_core::invariants` module (see Invariant checkers).
 - `Lsn(pub u64)` is a newtype (`Lsn::ZERO`, `next()`). `ColId(pub u32)` is a column's position in the schema.
 - `Value` has `Int(i64)`, `Float(f64)`, `Str(String)`, `Bytes(Vec<u8>)`, `Vector(Vec<f32>)` and `Null`. It derives `PartialEq` only, with no `Eq`/`Ord`/`Hash`, because of the `f64`. Do not use it as a `HashMap`/`BTreeMap` key; `Row`, `ChangeBatch` and `ColumnBatch` inherit this. `Value::fits(DataType, nullable)` is the single type check.
 - A `Schema` has exactly one primary-key column, which is non-nullable `Int`, `Str` or `Bytes`. `Schema::new` returns `Result` and enforces this.

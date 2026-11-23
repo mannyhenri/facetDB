@@ -296,14 +296,14 @@ pub fn check_batch_sizes(sizes: &[usize], available: usize) -> Result<(), Violat
         // A batch larger than what remains is caught by the total below.
         remaining = remaining.saturating_sub(size);
     }
-    let actual = sizes.iter().fold(0usize, |sum, &s| sum.saturating_add(s));
-    if actual != available {
-        return Err(Violation::TotalMismatch {
+    // A sum that overflows usize can never equal `available`; report it as usize::MAX.
+    match sizes.iter().try_fold(0usize, |sum, &s| sum.checked_add(s)) {
+        Some(actual) if actual == available => Ok(()),
+        actual => Err(Violation::TotalMismatch {
             expected: available,
-            actual,
-        });
+            actual: actual.unwrap_or(usize::MAX),
+        }),
     }
-    Ok(())
 }
 
 static MISSING_KEY: Value = Value::Null;
@@ -762,6 +762,20 @@ mod tests {
                 actual: usize::MAX
             })
         );
+    }
+
+    #[test]
+    fn an_overflowing_total_never_matches_usize_max() {
+        for sizes in [&[usize::MAX, 5][..], &[usize::MAX - 1, 2000][..]] {
+            assert_eq!(
+                check_batch_sizes(sizes, usize::MAX),
+                Err(Violation::TotalMismatch {
+                    expected: usize::MAX,
+                    actual: usize::MAX
+                }),
+                "sizes {sizes:?}"
+            );
+        }
     }
 
     // --- Display, set-based over every variant ---
