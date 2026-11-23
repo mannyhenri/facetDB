@@ -7,6 +7,36 @@
 - Plan: `todos/run-gates-script/plan.md` (no Phase 2 plan doc; the scope brief is the plan).
 - Code verified at 79a0b59 (clean tree).
 
+## Pre-merge verification (at ca0ab65)
+
+- **Tests:** 105 passing / 0 failing: Rust 87 (`cargo test --workspace`, summed by awk) + run-gates
+  Node tests 18 (locked AC-1 1, AC-2 2, AC-3 1, `scripts/run-gates.test.mjs` 14). `./run_gates.sh 0`:
+  17 PASS / 0 FAIL, covering all 12 earlier acceptance files.
+- **Type check:** clean. `bash -n` and `/bin/bash -n` (3.2) on `run_gates.sh`; `node --check` on the
+  5 new `.mjs` files; `cargo check --workspace --all-targets` exit 0.
+- **Lint:** clean. `shellcheck run_gates.sh` 0 issues (one `SC2329` false positive disabled at
+  `run_gates.sh:68`); `cargo clippy --workspace --all-targets -- -D warnings` and
+  `cargo fmt --all --check` exit 0.
+- **Coverage:** no percentage (no coverage tool for bash; the project sets no threshold). Manual
+  audit of `run_gates.sh`, line ranges to tests:
+  - usage `:14-18`: AC-3 + "more invalid arguments"; undefined phase `:25-28`: "phases 1-7";
+  - prerequisites `:31-33`: "missing cargo", "missing node"; version `:34-41`: "node older than 18";
+  - `NODE_TEST_CONTEXT` `:45`: its own test; `check` `:52-65` both arms: happy path, "a failing cargo
+    check", "several failures";
+  - `forbidden_crates` `:69-73`: all 6 crates, failing `cargo tree`, clean tree;
+  - acceptance loop `:82-92`: files, missing dir, empty dir; summary `:94-99`: PASS and FAIL.
+  - Not reached: the non-numeric `node --version` fallback (`:37`) and `cd ... || exit 2` (`:43`).
+- **Scope:** no change under `crates/`, `Cargo.toml`, `Cargo.lock`, `PROGRESS.md`, `REPORT.md`;
+  locked files only in b9bd3aa.
+- **Review findings (non-blocking):**
+  - P3 `run_gates.sh:72`: the forbidden-crate match is exact-name, so a direct dependency on a
+    binding crate (`librocksdb-sys`, `libduckdb-sys`, `lmdb-rkv`) would pass, where the CLAUDE.md
+    substring grep would catch it. The six named crates themselves are caught. Candidate for Phase 4.
+  - P3 `run_gates.sh:43`: `cd "$(dirname "$0")"` follows a symlinked invocation to the link's
+    directory, not the repo. Only matters if someone symlinks the script.
+  - P3 `run_gates.sh:55`: a check prints nothing until it ends (the 10M-events file takes ~10-60 s),
+    so long checks look idle.
+
 ## Results at 79a0b59
 
 Locked acceptance tests (`node --test <file>`, run alone):
