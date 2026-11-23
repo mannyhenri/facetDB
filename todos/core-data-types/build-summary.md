@@ -9,7 +9,7 @@
 - **Tests:** 34 passing / 0 failing with `cargo test --workspace` (facet-core 27 unit + 1 `compile_fail` doctest, including set-based key-type and fits tests, including the from_rows → to_rows proptest; 1 each in bench, check, delta, engine, log, planner; 0 in layouts). Acceptance: 15 passing / 0 failing across the three locked `acceptance/core-data-types` files and `acceptance/cargo-workspace/ac-1-scaffold-runs`.
 - **Type check:** clean, `cargo check --workspace --all-targets` (0 errors, 0 warnings).
 - **Lint:** clean, `cargo clippy --workspace --all-targets -- -D warnings` (0 issues) and `cargo fmt --all --check`.
-- **Coverage:** not measured as a percentage, because no coverage tool (cargo-llvm-cov, tarpaulin) is installed and the project sets no threshold. A manual audit found that every public function and every private helper in `crates/core/src` is exercised by a unit or acceptance test. The only line never reached is the defensive `unreachable!` arm at `column.rs:48`. The three error `Display` impls were the last gap; they gained tests in this step (`schema.rs` `errors_display_readably`, `column.rs` `from_rows_rejects_an_invalid_row`).
+- **Coverage:** not measured as a percentage, because no coverage tool (cargo-llvm-cov, tarpaulin) is installed and the project sets no threshold. A manual audit found that every public function and every private helper in `crates/core/src` is exercised by a unit or acceptance test. The only line never reached is the defensive `unreachable!` arm at `column.rs:49`. The three error `Display` impls were the last gap; they gained tests in this step (`schema.rs` `errors_display_readably`, `column.rs` `from_rows_rejects_an_invalid_row`).
 - **Forbidden crates:** none (`cargo tree --workspace -e normal,dev`). facet-core has no normal dependencies.
 - **Locked files:** the 6 `acceptance/core-data-types` files are byte-identical to the approved versions.
 
@@ -33,6 +33,6 @@ Triage in `p1.md` (none) and `p2.md` (one, resolved: `SelectionMut`). P3s resolv
 ## Review notes (non-blocking, pre-review)
 
 - `row.rs:25`: `Row::key` panicked on a short row; resolved in triage (now returns `Option<&Value>`).
-- `column.rs:103-106`: `from_rows` validates every row before building, an extra O(rows × cols) pass that keeps `column.rs:48` unreachable.
+- `column.rs:130-134`: `from_rows` validates every row before building, an extra O(rows × cols) pass that keeps `column.rs:49` unreachable.
 - `schema.rs:155,170`: `ColId(i as u32)` would truncate past 2³² columns. Not reachable in practice.
 - `lib.rs:2`: the forward-looking Fragment note stays, because the locked cargo-workspace test requires the core doc to name Fragment.
