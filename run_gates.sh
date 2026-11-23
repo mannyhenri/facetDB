@@ -46,6 +46,8 @@ unset NODE_TEST_CONTEXT
 
 total=0
 failed=0
+# The check whose output carries the cargo test counts (see `check`).
+test_check="cargo test --workspace"
 
 # check <name> <command...>: runs the command and prints `PASS <name>` or `FAIL <name>`. A
 # failure's output follows, indented, so no output line can look like a check line.
@@ -62,7 +64,7 @@ check() {
     echo "FAIL $name"
   fi
   # scripts/record_gate.sh copies this line into the PROGRESS.md gate entry.
-  if [ "$name" = "cargo test --workspace" ]; then
+  if [ "$name" = "$test_check" ]; then
     printf '%s\n' "$out" | awk '/^test result:/ {
       for (i = 1; i < NF; i++) {
         if ($(i + 1) ~ /^passed/) passed += $i
@@ -86,7 +88,7 @@ forbidden_crates() {
 check "cargo fmt --all --check" cargo fmt --all --check
 check "cargo clippy --workspace --all-targets -- -D warnings" cargo clippy --workspace --all-targets -- -D warnings
 check "cargo build --workspace" cargo build --workspace
-check "cargo test --workspace" cargo test --workspace
+check "$test_check" cargo test --workspace
 check "forbidden crates (cargo tree --workspace -e normal,dev)" forbidden_crates
 
 # Each acceptance file runs alone: `node --test <dir>` has reported spurious failures.

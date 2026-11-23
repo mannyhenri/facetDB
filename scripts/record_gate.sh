@@ -10,13 +10,13 @@
 # Otherwise: the gate's own exit status (nothing recorded). Works with macOS /bin/bash 3.2.
 
 usage() {
-  echo "usage: scripts/record_gate.sh <phase 0-9> [--decision \"<text>\"]... [--cut \"<text>\"]" >&2
+  echo "usage: scripts/record_gate.sh <phase 0-7> [--decision \"<text>\"]... [--cut \"<text>\"]" >&2
   exit 2
 }
 
 [ $# -ge 1 ] || usage
 case $1 in
-  [0-9]) phase=$1 ;;
+  [0-7]) phase=$1 ;;
   *) usage ;;
 esac
 shift
@@ -37,6 +37,9 @@ while [ $# -gt 0 ]; do
 done
 
 cd "$(dirname "$0")/.." || exit 2
+for heading in "## Decisions" "## Gates"; do
+  grep -qxF "$heading" PROGRESS.md || { echo "record_gate.sh: PROGRESS.md has no '$heading' section" >&2; exit 2; }
+done
 
 # Time spent runs from the previous phase's gate commit (exact subject), or for phase 0 from the
 # repository's first commit. A loose match would take e.g. "Phase 0: set up cargo workspace".
@@ -69,9 +72,12 @@ fi
 
 # Under a parent `node --test`, a nested `node --test <file>` exits 0 even when its tests fail.
 unset NODE_TEST_CONTEXT
-gate_output=$(./run_gates.sh "$phase" 2>&1)
-gate_status=$?
-printf '%s\n' "$gate_output"
+gate_log=$(mktemp "${TMPDIR:-/tmp}/gate.XXXXXX") || exit 1
+# tee shows the gate live; PIPESTATUS keeps the gate's own exit status.
+./run_gates.sh "$phase" 2>&1 | tee "$gate_log"
+gate_status=${PIPESTATUS[0]}
+gate_output=$(cat "$gate_log")
+rm -f "$gate_log"
 if [ "$gate_status" -ne 0 ]; then
   echo "record_gate.sh: phase $phase gate failed (exit $gate_status); nothing recorded" >&2
   exit "$gate_status"
