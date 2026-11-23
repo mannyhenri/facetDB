@@ -21,7 +21,7 @@ esac
 # The feature that closes a phase adds its entry here. Never list run-gates-script: its tests run
 # this script, so the gate would call itself.
 case $phase in
-  0) acceptance_dirs="cargo-workspace core-data-types invariant-checkers benchmark-data-generator" ;;
+  0) acceptance_dirs="cargo-workspace core-data-types invariant-checkers benchmark-data-generator progress-tracking" ;;
   *)
     echo "phase $phase gate is not defined yet" >&2
     exit 2
@@ -60,6 +60,17 @@ check() {
   else
     failed=$((failed + 1))
     echo "FAIL $name"
+  fi
+  # scripts/record_gate.sh copies this line into the PROGRESS.md gate entry.
+  if [ "$name" = "cargo test --workspace" ]; then
+    printf '%s\n' "$out" | awk '/^test result:/ {
+      for (i = 1; i < NF; i++) {
+        if ($(i + 1) ~ /^passed/) passed += $i
+        if ($(i + 1) ~ /^failed/) failed += $i
+      }
+    } END { printf "    cargo test: %d passed, %d failed\n", passed, failed }'
+  fi
+  if [ "$status" -ne 0 ]; then
     printf '%s\n' "$out" | sed 's/^/    /'
   fi
 }

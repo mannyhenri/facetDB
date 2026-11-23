@@ -38,11 +38,11 @@ const FAILING = "import { test } from 'node:test';\ntest('bad', () => { throw ne
 // prints FAKE_CARGO_TREE_OUT; `cargo test` prints FAKE_CARGO_TEST_OUT.
 const FAKE_CARGO = `#!/bin/sh
 echo "$*" >> "$FAKE_CARGO_LOG"
+if [ "$1" = test ] && [ -n "$FAKE_CARGO_TEST_OUT" ]; then printf '%s\\n' "$FAKE_CARGO_TEST_OUT"; fi
 case " $FAKE_CARGO_FAIL " in *" $1 "*)
   echo "FAIL injected $1"; echo "PASS injected $1"; exit 101 ;;
 esac
 if [ "$1" = tree ]; then printf '%s\\n' "\${FAKE_CARGO_TREE_OUT:-facet-core v0.1.0}"; fi
-if [ "$1" = test ] && [ -n "$FAKE_CARGO_TEST_OUT" ]; then printf '%s\\n' "$FAKE_CARGO_TEST_OUT"; fi
 exit 0
 `;
 
