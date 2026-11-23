@@ -39,19 +39,23 @@ impl ColumnData {
     /// Appends `value`, which must already fit this column; `Null` appends a placeholder.
     fn push(&mut self, value: &Value) {
         match (self, value) {
+            (column, Value::Null) => column.push_null(),
             (ColumnData::Int(a), Value::Int(x)) => a.push(*x),
             (ColumnData::Float(a), Value::Float(x)) => a.push(*x),
             (ColumnData::Str(a), Value::Str(x)) => a.push(x.clone()),
             (ColumnData::Bytes(a), Value::Bytes(x)) => a.push(x.clone()),
             (ColumnData::Vector { values, .. }, Value::Vector(x)) => values.extend_from_slice(x),
-            (ColumnData::Int(a), Value::Null) => a.push(0),
-            (ColumnData::Float(a), Value::Null) => a.push(0.0),
-            (ColumnData::Str(a), Value::Null) => a.push(String::new()),
-            (ColumnData::Bytes(a), Value::Null) => a.push(Vec::new()),
-            (ColumnData::Vector { dim, values }, Value::Null) => {
-                values.resize(values.len() + *dim, 0.0)
-            }
             (column, value) => unreachable!("{value:?} pushed into {column:?} after validation"),
+        }
+    }
+
+    fn push_null(&mut self) {
+        match self {
+            ColumnData::Int(a) => a.push(0),
+            ColumnData::Float(a) => a.push(0.0),
+            ColumnData::Str(a) => a.push(String::new()),
+            ColumnData::Bytes(a) => a.push(Vec::new()),
+            ColumnData::Vector { dim, values } => values.resize(values.len() + *dim, 0.0),
         }
     }
 
@@ -76,7 +80,6 @@ pub struct ColumnBatch {
     columns: Vec<ColumnData>,
     validity: Vec<Bitmap>,
     selection: Bitmap,
-    len: usize,
 }
 
 /// A row given to `ColumnBatch::from_rows` did not match the schema.
@@ -110,7 +113,7 @@ impl ColumnBatch {
             let mut valid = Bitmap::all_set(rows.len());
             for (r, row) in rows.iter().enumerate() {
                 let value = &row.values()[c];
-                if *value == Value::Null {
+                if matches!(value, Value::Null) {
                     valid.set(r, false);
                 }
                 data.push(value);
@@ -122,7 +125,6 @@ impl ColumnBatch {
             columns,
             validity,
             selection: Bitmap::all_set(rows.len()),
-            len: rows.len(),
         })
     }
 
@@ -136,11 +138,11 @@ impl ColumnBatch {
 
     /// Number of rows, selected or not.
     pub fn len(&self) -> usize {
-        self.len
+        self.selection.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.selection.is_empty()
     }
 
     /// One typed array per schema column, in schema order.

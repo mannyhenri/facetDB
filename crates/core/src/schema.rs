@@ -97,18 +97,12 @@ impl fmt::Display for RowError {
                 actual,
             } => {
                 let null = if *nullable { " (nullable)" } else { "" };
-                match actual {
-                    Some(t) => write!(
-                        f,
-                        "column {}: expected {expected:?}{null}, got {t:?}",
-                        column.0
-                    ),
-                    None => write!(
-                        f,
-                        "column {}: expected {expected:?}{null}, got Null",
-                        column.0
-                    ),
-                }
+                let got = actual.map_or("Null".to_string(), |t| format!("{t:?}"));
+                write!(
+                    f,
+                    "column {}: expected {expected:?}{null}, got {got}",
+                    column.0
+                )
             }
         }
     }
