@@ -595,6 +595,25 @@ mod tests {
         assert!(cmp_values(&Value::Null, &Value::Null).is_eq());
     }
 
+    #[test]
+    fn cmp_values_orders_every_pair_of_kinds_by_rank() {
+        // One sample per kind, in rank order; kind_rank's exhaustive match breaks the build
+        // when a Value variant is added.
+        let kinds = [
+            Value::Int(i64::MAX),
+            Value::Float(f64::MIN),
+            Value::Str(String::new()),
+            Value::Bytes(vec![]),
+            Value::Vector(vec![]),
+            Value::Null,
+        ];
+        for (i, x) in kinds.iter().enumerate() {
+            for (j, y) in kinds.iter().enumerate() {
+                assert_eq!(cmp_values(x, y), i.cmp(&j), "{x:?} vs {y:?}");
+            }
+        }
+    }
+
     // --- segments ---
 
     #[test]
