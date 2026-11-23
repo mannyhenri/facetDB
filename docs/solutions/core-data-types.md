@@ -19,7 +19,7 @@ Three locked acceptance tests (`acceptance/core-data-types/ac-{1,2,3}-*`) fixed 
 
 ## Solution
 
-- One private module per type in `crates/core/src/` (`lsn`, `value`, `schema`, `row`, `change`, `bitmap`, `column`), all re-exported from `crates/core/src/lib.rs:12-18`, with `BATCH_ROWS = 1024` at `lib.rs:21`.
+- One private module per type in `crates/core/src/` (`lsn`, `value`, `schema`, `row`, `change`, `bitmap`, `column`), all re-exported from `crates/core/src/lib.rs:13-19`, with `BATCH_ROWS = 1024` at `lib.rs:22`.
 - Newtypes `Lsn(pub u64)` (`lsn.rs:5`, `ZERO` at `:9`, an overflow-checked `next()` at `:12-14`) and `ColId(pub u32)` (`schema.rs:10`).
 - `Value` has the five spec variants plus `Null` (`value.rs:6-14`), deriving `PartialEq` only. `DataType` mirrors the non-null variants, with `Vector { dim }` (`value.rs:17-24`). `Value::fits` (`value.rs:41-46`) is the single type check, and `Schema::validate` uses it.
 - `Schema::new` validates instead of trusting its input. It returns `Result` and rejects a primary key that is out of range, nullable, or not Int/Str/Bytes, as well as duplicate names (`schema.rs:116-136`). Fields are private, so the invariant holds afterwards.
@@ -64,7 +64,7 @@ Three locked acceptance tests (`acceptance/core-data-types/ac-{1,2,3}-*`) fixed 
 
 ## Key Code References
 
-- `crates/core/src/lib.rs:12-18`: re-exports (the public API). `lib.rs:21`: `BATCH_ROWS`.
+- `crates/core/src/lib.rs:13-19`: re-exports (the public API). `lib.rs:22`: `BATCH_ROWS`. `lib.rs:7`: `pub mod invariants` (see `docs/solutions/invariant-checkers.md`).
 - `crates/core/src/value.rs:6-14`: `Value` (PartialEq only). `:17-24`: `DataType`. `:41-46`: `fits`.
 - `crates/core/src/schema.rs:116-136`: `Schema::new` primary-key and duplicate-name rules. `:159`: `validate`.
 - `crates/core/src/row.rs:25`: `Row::key -> Option<&Value>`.
