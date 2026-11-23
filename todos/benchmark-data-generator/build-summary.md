@@ -4,6 +4,19 @@
 - Plan: `todos/benchmark-data-generator/plan.md` (no Phase 2 plan doc; the scope brief is the plan).
 - Usage and design: `docs/solutions/benchmark-data-generator.md`.
 
+## Pre-merge verification
+
+- **Tests:** 87 passing / 0 failing (`sh -c 'cargo test --workspace 2>&1'`, summed with awk): facet-bench 3 unit + 24 integration (`tests/datagen.rs`), facet-core 54 unit + 1 `compile_fail` doctest, 1 each in check, delta, engine, log, planner. Acceptance: 23 passing / 0 failing across all 12 files under `acceptance/`, each run alone with `node --test` (benchmark-data-generator AC-1..AC-3 1 each, cargo-workspace 8, core-data-types 1 + 1 + 5, invariant-checkers 5 x 1).
+- **Type check:** clean, `cargo check --workspace --all-targets` (0 errors, 0 warnings).
+- **Lint:** clean, `cargo clippy --workspace --all-targets -- -D warnings` (0 issues) and `cargo fmt --all --check`. `RUSTDOCFLAGS="-D warnings" cargo doc -p facet-bench --no-deps` clean.
+- **Coverage:** not measured as a percentage: no coverage tool (cargo-llvm-cov, tarpaulin) is installed and the project sets no threshold. Manual audit of `crates/bench/src`:
+  - Every public item is exercised: `Dataset` methods, `rows`, `write_files` (0 rows, missing dir, threads 1 vs 7, seed change, `threads == 0`, `out` is a file), `parse_args` (defaults, all flags, 11 bad inputs).
+  - The binary's success path is exercised by the acceptance tests; its error paths were checked by hand: no arguments and `--rows x` exit 2 with the usage/error message, `--out <existing file>` exits 1 with `File exists`.
+  - Not reached by tests: an I/O error in the middle of writing (`datagen.rs:185-187`), the worker-panic `expect` (`datagen.rs:184`) and the unreachable Bytes/Vector arm of `parse_field` (`datagen.rs:449`).
+- **Dependencies:** none added; no forbidden crates (`cargo tree --workspace -e normal,dev`).
+- **Locked files:** the 3 `acceptance/benchmark-data-generator` files match the locked hashes (`shasum -a 256`).
+- **Non-blocking notes (P3):** row counts near `u64::MAX` would overflow `(c + 1) * CHUNK_ROWS` (`datagen.rs:168`) and `i * 250` in `event_time` (`datagen.rs:365`) (panic in debug, wrap in release). Unreachable in practice (the file would be exabytes), so left as is.
+
 ## Measured
 
 `cargo build --release -p facet-bench --bin facet-gen`, then
