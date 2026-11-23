@@ -260,22 +260,26 @@ impl Generator {
     /// Appends row `i`'s CSV line to `text` and, for vectors, its little-endian f32s to `floats`.
     fn write_row(&self, i: u64, text: &mut Vec<u8>, floats: &mut Vec<u8>) {
         let mut r = Rng(mix64(self.key.wrapping_add(i)));
+        let mut line = Line {
+            out: text,
+            started: false,
+        };
         match self.dataset {
-            Dataset::Events => write_event(&mut r, i, text),
-            Dataset::Orders => write_order(&mut r, i, text),
-            Dataset::Vectors => self.write_vector(&mut r, i, text, floats),
+            Dataset::Events => write_event(&mut r, i, &mut line),
+            Dataset::Orders => write_order(&mut r, i, &mut line),
+            Dataset::Vectors => self.write_vector(&mut r, i, &mut line, floats),
         }
-        text.push(b'\n');
+        line.out.push(b'\n');
     }
 
-    fn write_vector(&self, r: &mut Rng, i: u64, text: &mut Vec<u8>, floats: &mut Vec<u8>) {
+    fn write_vector(&self, r: &mut Rng, i: u64, line: &mut Line, floats: &mut Vec<u8>) {
         let category = r.skewed(VECTOR_CATEGORIES as u64) as usize;
-        push_int(text, i);
-        text.extend_from_slice(b",cat_");
-        text.push(b'0' + (category / 10) as u8);
-        text.push(b'0' + (category % 10) as u8);
-        text.push(b',');
-        push_cents(text, 100 + r.skewed(99_900));
+        line.int(i);
+        let name = line.field();
+        name.extend_from_slice(b"cat_");
+        name.push(b'0' + (category / 10) as u8);
+        name.push(b'0' + (category % 10) as u8);
+        push_cents(line.field(), 100 + r.skewed(99_900)); // price
         let centroid = &self.centroids[category * VECTOR_DIM..(category + 1) * VECTOR_DIM];
         for c in centroid {
             // Roughly normal noise (sum of three uniforms), standard deviation ~0.1.
@@ -356,75 +360,81 @@ const STATUSES: &[&str] = &[
     "returned",
 ];
 
-fn write_event(r: &mut Rng, i: u64, out: &mut Vec<u8>) {
+fn write_event(r: &mut Rng, i: u64, line: &mut Line) {
     let user = r.skewed(1_000_000);
     let time = EVENTS_START_MS + i * 250 + r.below(250);
     let section = r.pick_skewed(SECTIONS);
     let page = r.skewed(10_000);
-
-    push_int(out, i);
-    out.push(b',');
-    push_int(out, time);
-    out.push(b',');
-    push_int(out, user);
-    out.push(b',');
-    push_int(out, user * 1_000 + r.below(1_000)); // session_id
-    out.push(b',');
-    out.extend_from_slice(b"https://shop.example/");
-    out.extend_from_slice(section.as_bytes());
-    out.push(b'/');
-    push_int(out, page);
-    out.push(b',');
-    out.extend_from_slice(r.pick_skewed(REFERERS).as_bytes());
-    out.push(b',');
-    out.extend_from_slice(section.as_bytes());
-    out.extend_from_slice(b" page ");
-    push_int(out, page);
-    out.push(b',');
+    line.int(i);
+    line.int(time);
+    line.int(user);
+    line.int(user * 1_000 + r.below(1_000)); // session_id
+    let url = line.field();
+    url.extend_from_slice(b"https://shop.example/");
+    url.extend_from_slice(section.as_bytes());
+    url.push(b'/');
+    push_int(url, page);
+    line.text(r.pick_skewed(REFERERS));
+    let title = line.field();
+    title.extend_from_slice(section.as_bytes());
+    title.extend_from_slice(b" page ");
+    push_int(title, page);
+    let phrase = line.field();
     if r.below(100) < 15 {
-        out.extend_from_slice(r.pick_skewed(SEARCH_WORDS).as_bytes());
-        out.push(b' ');
-        out.extend_from_slice(r.pick_skewed(SEARCH_WORDS).as_bytes());
+        phrase.extend_from_slice(r.pick_skewed(SEARCH_WORDS).as_bytes());
+        phrase.push(b' ');
+        phrase.extend_from_slice(r.pick_skewed(SEARCH_WORDS).as_bytes());
     }
-    out.push(b',');
     let country = r.skewed(COUNTRIES.len() as u64);
-    out.extend_from_slice(COUNTRIES[country as usize].as_bytes());
-    out.push(b',');
-    push_int(out, country * 100 + r.skewed(100)); // region_id
-    out.push(b',');
-    out.extend_from_slice(r.pick_skewed(BROWSERS).as_bytes());
-    out.push(b',');
-    out.extend_from_slice(r.pick_skewed(OSES).as_bytes());
-    out.push(b',');
+    line.text(COUNTRIES[country as usize]);
+    line.int(country * 100 + r.skewed(100)); // region_id
+    line.text(r.pick_skewed(BROWSERS));
+    line.text(r.pick_skewed(OSES));
     let device = r.skewed(DEVICES.len() as u64) as usize;
-    out.extend_from_slice(DEVICES[device].as_bytes());
-    out.push(b',');
-    push_int(out, u64::from(device != 0)); // is_mobile
-    out.push(b',');
+    line.text(DEVICES[device]);
+    line.int(u64::from(device != 0)); // is_mobile
     let (w, h) = RESOLUTIONS[device][r.skewed(RESOLUTIONS[device].len() as u64) as usize];
-    push_int(out, w);
-    out.push(b',');
-    push_int(out, h);
-    out.push(b',');
-    push_int(out, r.skewed(600_000)); // duration_ms
-    out.push(b',');
+    line.int(w);
+    line.int(h);
+    line.int(r.skewed(600_000)); // duration_ms
+    let revenue = line.field(); // NULL (empty) for most rows
     if r.below(100) < 3 {
-        push_cents(out, 1 + r.skewed(50_000)); // revenue; NULL (empty) otherwise
+        push_cents(revenue, 1 + r.skewed(50_000));
     }
 }
 
-fn write_order(r: &mut Rng, i: u64, out: &mut Vec<u8>) {
-    push_int(out, i);
-    out.push(b',');
-    push_int(out, r.skewed(200_000)); // customer_id
-    out.push(b',');
-    push_int(out, r.skewed(20_000)); // product_id
-    out.push(b',');
-    push_int(out, 1 + r.skewed(10)); // quantity
-    out.push(b',');
-    push_cents(out, 199 + r.skewed(49_800)); // price
-    out.push(b',');
-    out.extend_from_slice(r.pick_skewed(STATUSES).as_bytes());
+fn write_order(r: &mut Rng, i: u64, line: &mut Line) {
+    line.int(i);
+    line.int(r.skewed(200_000)); // customer_id
+    line.int(r.skewed(20_000)); // product_id
+    line.int(1 + r.skewed(10)); // quantity
+    push_cents(line.field(), 199 + r.skewed(49_800)); // price
+    line.text(r.pick_skewed(STATUSES));
+}
+
+/// Appends one CSV line's fields to a buffer, putting a comma before every field but the first.
+struct Line<'a> {
+    out: &'a mut Vec<u8>,
+    started: bool,
+}
+
+impl Line<'_> {
+    /// Starts the next field and returns the buffer to write it into.
+    fn field(&mut self) -> &mut Vec<u8> {
+        if self.started {
+            self.out.push(b',');
+        }
+        self.started = true;
+        self.out
+    }
+
+    fn int(&mut self, n: u64) {
+        push_int(self.field(), n);
+    }
+
+    fn text(&mut self, s: &str) {
+        self.field().extend_from_slice(s.as_bytes());
+    }
 }
 
 /// Parses one CSV field as written by this module; empty in a nullable column is NULL.
