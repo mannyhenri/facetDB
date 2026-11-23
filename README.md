@@ -28,3 +28,19 @@ list in `run_gates.sh` naming its directories under `acceptance/`, e.g.
 `phase N gate is not defined yet` and exits 2. A listed directory that is missing or holds no
 `*.test.mjs` file is a failure, not a skip. Never list `acceptance/run-gates-script`: its tests run
 `./run_gates.sh` themselves.
+
+## Recording a gate
+
+`scripts/record_gate.sh <phase> [--decision "<text>"]... [--cut "<text>"]` records a passed gate in
+`PROGRESS.md`. It runs `./run_gates.sh <phase>`; if the gate fails it records and commits nothing
+and exits with the gate's status. On a pass it appends a `### Phase N` entry under `## Gates` (date,
+time spent, the gate's summary line, number of checks, `cargo test` counts, decisions, cut), adds
+each decision under `## Decisions`, and commits `PROGRESS.md` alone as `Phase N: gate passed`.
+
+- Time spent is measured from the previous `Phase N-1: gate passed` commit (phase 0: from the first
+  commit). Recording phase N without that commit exits 2: one phase at a time.
+- If the phase has a budget in the schedule table and ran more than 20 minutes over it, `--cut` is
+  required (the script names the phase's section 7 cut) and is recorded as `cut: <text>`.
+- Write each decision that differs from the spec with its source, e.g.
+  `--decision "per-row seeds instead of per-chunk seeds (source: docs/solutions/benchmark-data-generator.md)"`.
+- Commit your work first: the gate's acceptance tests expect a clean tree.
