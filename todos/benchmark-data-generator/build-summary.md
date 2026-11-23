@@ -54,3 +54,14 @@ No new dependencies. `PROGRESS.md` unchanged (title-only).
 4. Decisions the brief left open: vectors column named `vector`; categories `cat_00`..`cat_99`
    (skewed); events start at 2024-01-01T00:00:00Z, about 250 ms apart (10M rows span ~29 days);
    `search_phrase` is a non-null `Str` (empty string), `revenue` the only nullable column.
+
+## Gap stage (stage 3): acceptance evidence location
+
+NeonCore's retest after stage 2 ran the locked tests in `/Users/mannyhenri/code/facetDB`, which was
+still on `main` (220a393), and all three failed with `no bin target named facet-gen`. The code was
+only in the separate worktree `../benchmark-data-generator-work` (the CE template's
+`../<slug>-work` name), never checked out in the repo path and never pushed. Fix, no code change:
+the untracked duplicate test copies in the repo path (hash-identical to the branch) were deleted,
+the clean worktree was removed, and `feature/benchmark-data-generator` was checked out in
+`/Users/mannyhenri/code/facetDB`, where AC-1..AC-3 then passed. Lesson: the acceptance check runs in
+the repo path, so the feature branch must be checked out (or pushed) there before a stage ends.
