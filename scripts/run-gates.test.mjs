@@ -19,7 +19,10 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(ROOT, 'run_gates.sh');
 const PHASE0_DIRS = [
   'cargo-workspace', 'core-data-types', 'invariant-checkers', 'benchmark-data-generator',
+  'progress-tracking',
 ];
+// Checks in a default fixture: the shared ones plus one acceptance file per Phase 0 directory.
+const DEFAULT_CHECKS = 5 + PHASE0_DIRS.length;
 const SHARED = [
   ['fmt --all --check', /^(PASS|FAIL) .*cargo fmt/],
   ['clippy --workspace --all-targets -- -D warnings', /^(PASS|FAIL) .*cargo clippy/],
@@ -32,13 +35,14 @@ const FAILING = "import { test } from 'node:test';\ntest('bad', () => { throw ne
 
 // Fake cargo: logs its arguments; fails the subcommands listed in FAKE_CARGO_FAIL (printing
 // lines that start with PASS/FAIL, which the gate must not pass through unindented); `cargo tree`
-// prints FAKE_CARGO_TREE_OUT.
+// prints FAKE_CARGO_TREE_OUT; `cargo test` prints FAKE_CARGO_TEST_OUT.
 const FAKE_CARGO = `#!/bin/sh
 echo "$*" >> "$FAKE_CARGO_LOG"
 case " $FAKE_CARGO_FAIL " in *" $1 "*)
   echo "FAIL injected $1"; echo "PASS injected $1"; exit 101 ;;
 esac
 if [ "$1" = tree ]; then printf '%s\\n' "\${FAKE_CARGO_TREE_OUT:-facet-core v0.1.0}"; fi
+if [ "$1" = test ] && [ -n "$FAKE_CARGO_TEST_OUT" ]; then printf '%s\\n' "$FAKE_CARGO_TEST_OUT"; fi
 exit 0
 `;
 
@@ -112,7 +116,7 @@ test('phase 0 with every check passing: exit 0, one PASS per check, cargo called
       const names = d === 'core-data-types' ? ['ac-1-a.test.mjs', 'ac-2-b.test.mjs'] : ['ac-1-ok.test.mjs'];
       for (const f of names) assert.match(lineFor(r, fileLine(d, f), `${d}/${f}`), /^PASS /);
     }
-    assert.equal(r.checks.length, SHARED.length + 5, `exactly one line per check${ctx(r)}`);
+    assert.equal(r.checks.length, DEFAULT_CHECKS + 1, `exactly one line per check${ctx(r)}`);
     assert.equal(r.last, 'phase 0: PASS');
     assert.deepEqual(r.cargoCalls, SHARED.map(([a]) => a), 'cargo must be called once per shared check, in order');
   } finally { fx.cleanup(); }
@@ -140,7 +144,7 @@ test('a failing cargo check: exit 1, FAIL line, every later check still runs, ou
     assert.deepEqual(r.cargoCalls, SHARED.map(([a]) => a), 'every cargo check must still run');
     assert.match(r.all, /injected fmt/, 'the failing output must be shown');
     assert.ok(!r.checks.some((l) => /injected/.test(l)), `failing output must not start a line with PASS/FAIL${ctx(r)}`);
-    assert.equal(r.last, `phase 0: FAIL (1 of ${SHARED.length + 4} checks failed)`);
+    assert.equal(r.last, `phase 0: FAIL (1 of ${DEFAULT_CHECKS} checks failed)`);
   } finally { fx.cleanup(); }
 });
 
@@ -150,7 +154,7 @@ test('several failures are all counted', () => {
     const r = run(fx, ['0'], { FAKE_CARGO_FAIL: 'clippy test' });
     assert.equal(r.status, 1);
     assert.equal(r.checks.filter((l) => l.startsWith('FAIL ')).length, 3, ctx(r));
-    assert.equal(r.last, `phase 0: FAIL (3 of ${SHARED.length + 4} checks failed)`);
+    assert.equal(r.last, `phase 0: FAIL (3 of ${DEFAULT_CHECKS} checks failed)`);
   } finally { fx.cleanup(); }
 });
 
@@ -161,7 +165,7 @@ test('a failing acceptance file is a FAIL even when NODE_TEST_CONTEXT is inherit
       const r = run(fx, ['0'], env);
       assert.equal(r.status, 1, `exit 1 expected with ${JSON.stringify(env)}${ctx(r)}`);
       assert.match(lineFor(r, fileLine('benchmark-data-generator', 'ac-9-bad.test.mjs'), 'bad file'), /^FAIL /);
-      assert.equal(r.last, `phase 0: FAIL (1 of ${SHARED.length + 4} checks failed)`);
+      assert.equal(r.last, `phase 0: FAIL (1 of ${DEFAULT_CHECKS} checks failed)`);
     }
   } finally { fx.cleanup(); }
 });
@@ -174,7 +178,7 @@ test('a listed acceptance directory that is missing is a FAIL naming it', () => 
     const r = run(fx, ['0']);
     assert.equal(r.status, 1, `exit 1 expected${ctx(r)}`);
     assert.match(lineFor(r, /^(PASS|FAIL) .*acceptance\/invariant-checkers/, 'missing dir'), /^FAIL /);
-    assert.equal(r.last, `phase 0: FAIL (1 of ${SHARED.length + 4} checks failed)`);
+    assert.equal(r.last, `phase 0: FAIL (1 of ${DEFAULT_CHECKS} checks failed)`);
   } finally { fx.cleanup(); }
 });
 
@@ -286,4 +290,38 @@ test('run_gates.sh is committed executable with a bash shebang, and README docum
   assert.match(readme, /\.\/run_gates\.sh <phase>/);
   for (const code of ['0', '1', '2']) assert.match(readme, new RegExp(`\\b${code}\\b.*(pass|fail|usage|error|defined)`, 'i'));
   assert.match(readme, /acceptance\//, 'README must say how a phase adds acceptance directories');
+});
+
+// --- cargo test counts (read by scripts/record_gate.sh) ------------------------------------------
+
+test('the cargo test check is followed by an indented line with the summed pass/fail counts', () => {
+  const fx = fixture();
+  try {
+    const out = [
+      '   Running unittests src/lib.rs (target/debug/deps/facet_core-1)',
+      'test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s',
+      'test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s',
+      '   Doc-tests facet_core',
+      'test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s',
+    ].join('\n');
+    const r = run(fx, ['0'], { FAKE_CARGO_TEST_OUT: out });
+    assert.equal(r.status, 0, ctx(r));
+    const lines = r.stdout.split('\n');
+    const at = lines.findIndex((l) => /^PASS .*cargo test/.test(l));
+    assert.ok(at >= 0, ctx(r));
+    assert.equal(lines[at + 1], '    cargo test: 87 passed, 0 failed', `counts line after the check${ctx(r)}`);
+    assert.equal(r.checks.length, DEFAULT_CHECKS, 'the counts line is not a check line');
+  } finally { fx.cleanup(); }
+});
+
+test('the counts line also follows a failing cargo test check', () => {
+  const fx = fixture();
+  try {
+    const out = 'test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s';
+    const r = run(fx, ['0'], { FAKE_CARGO_TEST_OUT: out, FAKE_CARGO_FAIL: 'test' });
+    assert.equal(r.status, 1, ctx(r));
+    const lines = r.stdout.split('\n');
+    const at = lines.findIndex((l) => /^FAIL .*cargo test/.test(l));
+    assert.equal(lines[at + 1], '    cargo test: 9 passed, 2 failed', ctx(r));
+  } finally { fx.cleanup(); }
 });
