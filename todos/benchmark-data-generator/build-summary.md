@@ -6,6 +6,8 @@
 
 ## Pre-merge verification
 
+Last re-run: 2026-11-23 in `/Users/mannyhenri/code/facetDB` on this branch @ 7a6ad20 (clean tree); every number below re-checked there. `cargo bench -p facet-bench --no-run` also exits 0. The acceptance total (23) is summed by script from the `ℹ pass` lines; the Run Tests step report said 22, a hand-sum error.
+
 - **Tests:** 87 passing / 0 failing (`sh -c 'cargo test --workspace 2>&1'`, summed with awk): facet-bench 3 unit + 24 integration (`tests/datagen.rs`), facet-core 54 unit + 1 `compile_fail` doctest, 1 each in check, delta, engine, log, planner. Acceptance: 23 passing / 0 failing across all 12 files under `acceptance/`, each run alone with `node --test` (benchmark-data-generator AC-1..AC-3 1 each, cargo-workspace 8, core-data-types 1 + 1 + 5, invariant-checkers 5 x 1).
 - **Type check:** clean, `cargo check --workspace --all-targets` (0 errors, 0 warnings).
 - **Lint:** clean, `cargo clippy --workspace --all-targets -- -D warnings` (0 issues) and `cargo fmt --all --check`. `RUSTDOCFLAGS="-D warnings" cargo doc -p facet-bench --no-deps` clean.
