@@ -4,6 +4,41 @@
   `feature/run-gates-script` @ 4ab9225 (neither `facet-gen.rs` nor `run_gates.sh` is on `main`).
 - Plan: `todos/progress-tracking/plan.md`.
 
+## Pre-merge verification (at 11795aa)
+
+- **Tests:** 153 passing / 0 failing: Rust 87 (`cargo test --workspace`, summed by awk) + Node 66
+  (all 18 acceptance files run alone, plus `scripts/record-gate.test.mjs` 18 and
+  `scripts/run-gates.test.mjs` 16; summed by script). `./run_gates.sh 0`: 20 PASS / 0 FAIL.
+- **Type check:** clean. `/bin/bash -n` (3.2) on `run_gates.sh` and `scripts/record_gate.sh`;
+  `node --check` on the 6 new/changed `.mjs` files; `cargo check --workspace --all-targets` exit 0.
+- **Lint:** clean. `shellcheck run_gates.sh scripts/record_gate.sh` 0 issues; clippy `-D warnings` and
+  `cargo fmt --all --check` exit 0.
+- **Coverage:** no percentage (no bash coverage tool; no project threshold). Manual audit of
+  `scripts/record_gate.sh`:
+  - args `:17-37`: "invalid arguments" (9 cases incl. missing values, unknown flag);
+  - time `:46-57`: phase 0 from first commit, missing/lookalike previous gate, latest of several;
+  - budget/cut `:60-71`: locked AC-3, '—' budget, +20/+21 boundary, refusal before the gate;
+  - gate `:74-84`: locked AC-2b, failing-status test, NODE_TEST_CONTEXT test;
+  - entry and decisions `:86-104`, rewrite `:109-130`: entry, no-counts, decisions-order, verbatim
+    tests; commit `:132`: commit-scope and no-amend tests;
+  - `run_gates.sh:66-74` counts line: 2 tests in `scripts/run-gates.test.mjs`.
+  - Not reached by any test: the section guard `:40-42` (checked by hand: exits 2 before the gate),
+    the `mktemp`/awk failure exits `:75`, `:109`, `:129`, and a failing `git commit` `:132`.
+- **Scope:** no change under `crates/`, `Cargo.toml`, `Cargo.lock`, `REPORT.md`; this feature's locked
+  files only in 99eaa96; the one cargo-workspace amendment in d4abc1c (person-approved).
+- **Review findings (non-blocking):**
+  - P3 `scripts/record_gate.sh:109,130`: `mktemp` creates the file 0600 and `mv` keeps it, so
+    PROGRESS.md becomes owner-only on disk after a recording (`-rw-------` now). Git does not store
+    it; fix with `cat "$tmp" > PROGRESS.md` or `chmod 644` before the mv.
+  - P3 `scripts/record_gate.sh:132`: if `git commit` fails (hook, no identity), the entry stays in
+    the working copy uncommitted; restoring PROGRESS.md or a clearer message would keep record and
+    commit together.
+  - P3 `run_gates.sh:66-74`: when `cargo test` fails to compile there are no `test result:` lines and
+    the line reads `0 passed, 0 failed` under a FAIL; only a passing gate is ever recorded, so no
+    entry carries it.
+  - Note: Phase 0's time spent (2086 min) runs from the repo's first commit, so it covers every
+    earlier Phase 0 session, as the brief defines it.
+
 ## Resolved blocker: conflicting locked tests
 
 `acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` (locked by cargo-workspace, 3c6678f)
