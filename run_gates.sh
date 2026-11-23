@@ -28,8 +28,9 @@ case $phase in
     ;;
 esac
 
-command -v cargo >/dev/null 2>&1 || { echo "run_gates.sh: cargo not found on PATH" >&2; exit 2; }
-command -v node >/dev/null 2>&1 || { echo "run_gates.sh: node not found on PATH" >&2; exit 2; }
+for tool in cargo node; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "run_gates.sh: $tool not found on PATH" >&2; exit 2; }
+done
 node_version=$(node --version 2>/dev/null)
 node_major=${node_version#v}
 node_major=${node_major%%.*}
