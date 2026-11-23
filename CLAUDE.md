@@ -46,6 +46,9 @@ Facet stores every change once in an ordered log and maintains several physical 
 
 - **Set-based acceptance tests from `cargo metadata`.** Use `cargo metadata --format-version 1 --no-deps` as the oracle (needs no network) and assert *exact* sets with deep equality: member list, each crate's internal dependencies, dev-dependencies. A test that lists every member fails on a partial fix; one that checks a couple of examples does not.
 - **Prove a test before locking it.** Before submitting an acceptance test, run it against a throwaway reference implementation in a scratch directory (must pass) and a deliberately broken copy (must fail). Locked tests can never be edited, so bugs found later cannot be fixed.
+- **Make invalid states unrepresentable, then lock the restriction in with a test.** Keep invariant-carrying fields private, derive values that could drift (e.g. `ColumnBatch::len` is the selection length, with no separate counter), and hand out narrow handles (`SelectionMut`: `set` plus read-only `Deref`, no `DerefMut`) instead of `&mut` to a field. When the guarantee is "this must not compile", lock it with a `compile_fail` doctest (`crates/core/src/column.rs:89-94`).
+- **Set-based unit tests with an exhaustiveness guard.** For a rule over an enum (primary-key types, `Value::fits`), iterate every variant × every flag against an explicit expected table, and add an exhaustive `match` so adding a variant breaks the test build (`schema.rs:324`, `value.rs:105`). Write them this way first: the quality gate rejected example-based versions in core-data-types.
+- **Proptests over floats draw from finite ranges.** `NaN != NaN` fails round-trip equality without a real bug.
 - **Run the full check set at the end of every build stage:** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace`, `cargo test --workspace`, the acceptance commands, and `cargo tree --workspace -e normal,dev` for forbidden crates.
 
 ## Anti-patterns (and how to spot them early)
@@ -55,6 +58,11 @@ Facet stores every change once in an ordered log and maintains several physical 
 - **Dead `[workspace.dependencies]` entries.** `facet-check` was declared although no crate depends on it. Signal: an entry with no `.workspace = true` user. Check with `grep -r 'facet-x.workspace' crates/` before adding.
 - **Duplicate status docs.** A second build summary went stale within one stage and the review had to remove it. Keep one build summary per feature (`todos/<slug>/build-summary.md`) and update it in place.
 - **Unchecked `file:line` citations.** A cited range ran past the end of the file. Signal: any citation written from memory. Check with `wc -l` / `sed -n` before committing docs.
+  Citations also go stale: in core-data-types, adding `SelectionMut` moved `column.rs` lines and left `build-summary.md` pointing at the wrong ones, and the compound doc's first draft had three off-by-one ranges. Re-check every citation after the **last** code commit: `grep -n '\.rs:[0-9]' docs todos -r`, then `sed -n` each one.
+- **`&mut` accessor to a private, invariant-carrying field.** `ColumnBatch::selection_mut() -> &mut Bitmap` let a caller assign a bitmap of another length (rows silently dropped, or a panic in `to_rows`). The review caught it as a P2. Signal: any `pub fn x_mut(&mut self) -> &mut T` where `T` has a size or shape the struct depends on. Return a narrow handle instead.
+- **Methods that panic on malformed values of a `pub` field.** `Row(pub Vec<Value>)` can be short, so `Row::key` panicking was wrong (review P3). Signal: `expect`/indexing on data a caller can construct freely. Return `Option`/`Result`.
+- **Helpers with no caller.** `ChangeBatch::len`/`is_empty` summed inserts + updates + deletes (different kinds) and had no caller; triage removed them. Signal: a public method used only by its own test. Do not add it until a later crate needs it.
+- **`node --test <directory>`** reported `fail 1` on `acceptance/cargo-workspace/` although its only test file passes. Run each `*.test.mjs` file explicitly (`for t in acceptance/<slug>/*.test.mjs; do node --test "$t"; done`).
 - **`git worktree add ../<slug>-work feature/<slug>` from the CE templates** fails when the pipeline already runs in a worktree on that branch. Check `git worktree list` first and reuse the existing worktree.
 
 ## Taste decisions
@@ -64,6 +72,10 @@ Facet stores every change once in an ordered log and maintains several physical 
 - `Cargo.lock` is committed: the workspace builds benches and is an application, not a published library.
 - Placeholder unit tests are named `crate_builds`; the layouts modules are `pub mod`, ordered alphabetically in `lib.rs`.
 - Acceptance tests use Node's built-in test runner (`node --test`, no npm dependencies) under `acceptance/<slug>/`, because the repo has no other test harness for cross-crate contracts.
+- Core types: one private module per type, re-exported from `lib.rs`, so the module layout can change without breaking callers.
+- Plain-data newtypes expose their field (`Lsn(pub u64)`, `ColId(pub u32)`, `Row(pub Vec<Value>)`). Types with invariants (`Schema`, `ColumnBatch`, `Bitmap`) keep fields private behind a validating constructor that returns `Result` with a typed per-module error (`SchemaError`, `RowError`, `BatchError`).
+- `Value` is `PartialEq` only (no `Eq`/`Ord`/`Hash`), because of the `f64`. Containers of values follow it rather than wrapping floats in an ordered type.
+- Column nulls are placeholders in the typed array plus a cleared validity bit, so every array has exactly one entry per row (vectors: `len × dim`).
 
 ## Caveats
 
@@ -71,3 +83,6 @@ Facet stores every change once in an ordered log and maintains several physical 
 - The first `cargo test`/`cargo bench` on a fresh machine downloads criterion and proptest from crates.io; acceptance tests that run cargo are not offline until the cache is warm.
 - `PROGRESS.md` must stay title-only until the "Progress tracking in PROGRESS.md" feature, even where a brief says "record decisions in PROGRESS.md". Record them in `todos/<slug>/` or `docs/solutions/` meanwhile.
 - Pipeline instructions can conflict (e.g. "NeonCore opens the PR" vs a step that says to open it). Follow the specific step, and name the conflict in the report.
+  This recurred in core-data-types: "do not open a PR / do not push, NeonCore does" versus the Review step opening PR #2 and the Compound step saying "commit and push".
+- Brief assumptions about branch state go stale. The core-data-types brief said "PR #1 is not merged, branch from feature/cargo-workspace", but PR #1 had merged before work started. Check with `gh pr view <n> --json state,baseRefName` before choosing a base or a PR target.
+- Locked acceptance tests can pin prose. The cargo-workspace test requires the facet-core crate doc to name `Fragment` (`acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs:143`), so `crates/core/src/lib.rs:2` mentions a type that does not exist yet. Keep it until the Layout contract feature adds `Fragment`. When writing a new locked test, avoid asserting wording a later feature will want to change.
