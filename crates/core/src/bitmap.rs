@@ -1,5 +1,7 @@
 //! A small fixed-length bitset, used for selection and validity in column batches.
 
+const WORD_BITS: usize = u64::BITS as usize;
+
 /// A fixed number of bits, packed into `u64` words. Bits past `len` are always zero.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Bitmap {
@@ -10,8 +12,8 @@ pub struct Bitmap {
 impl Bitmap {
     /// `len` bits, all set.
     pub fn all_set(len: usize) -> Self {
-        let mut words = vec![u64::MAX; len.div_ceil(64)];
-        let tail = len % 64;
+        let mut words = vec![u64::MAX; len.div_ceil(WORD_BITS)];
+        let tail = len % WORD_BITS;
         if tail > 0 {
             // tail > 0 implies at least one word.
             *words.last_mut().unwrap() = (1u64 << tail) - 1;
@@ -30,17 +32,17 @@ impl Bitmap {
     /// Panics if `i >= len`.
     pub fn get(&self, i: usize) -> bool {
         self.check(i);
-        self.words[i / 64] & (1 << (i % 64)) != 0
+        self.words[i / WORD_BITS] & (1 << (i % WORD_BITS)) != 0
     }
 
     /// Panics if `i >= len`.
     pub fn set(&mut self, i: usize, value: bool) {
         self.check(i);
-        let mask = 1 << (i % 64);
+        let mask = 1 << (i % WORD_BITS);
         if value {
-            self.words[i / 64] |= mask;
+            self.words[i / WORD_BITS] |= mask;
         } else {
-            self.words[i / 64] &= !mask;
+            self.words[i / WORD_BITS] &= !mask;
         }
     }
 
@@ -59,7 +61,7 @@ impl Bitmap {
                 }
                 let b = bits.trailing_zeros() as usize;
                 bits &= bits - 1;
-                Some(w * 64 + b)
+                Some(w * WORD_BITS + b)
             })
         })
     }

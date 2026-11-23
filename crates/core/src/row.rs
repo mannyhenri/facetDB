@@ -20,10 +20,10 @@ impl Row {
         self.0
     }
 
-    /// The primary-key value. Panics if the row is shorter than the schema;
-    /// rows that passed `Schema::validate` never are.
-    pub fn key(&self, schema: &Schema) -> &Value {
-        &self.0[schema.primary_key().index()]
+    /// The primary-key value, or `None` if the row is shorter than the schema
+    /// (rows that passed `Schema::validate` never are).
+    pub fn key(&self, schema: &Schema) -> Option<&Value> {
+        self.0.get(schema.primary_key().index())
     }
 }
 
@@ -44,6 +44,7 @@ mod tests {
         )
         .unwrap();
         let row = Row::new(vec![Value::Str("a".into()), Value::Bytes(vec![7])]);
-        assert_eq!(row.key(&schema), &Value::Bytes(vec![7]));
+        assert_eq!(row.key(&schema), Some(&Value::Bytes(vec![7])));
+        assert_eq!(Row::new(vec![Value::Str("a".into())]).key(&schema), None);
     }
 }

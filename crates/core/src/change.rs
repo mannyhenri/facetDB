@@ -26,15 +26,6 @@ impl ChangeBatch {
             deletes: Vec::new(),
         }
     }
-
-    /// Total number of changes (inserts + updates + deletes).
-    pub fn len(&self) -> usize {
-        self.inserts.len() + self.updates.len() + self.deletes.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 }
 
 #[cfg(test)]
@@ -85,16 +76,15 @@ mod tests {
             ),
             (1, 1, 1)
         );
-        assert_eq!(batch.len(), 3);
         assert!(schema.validate(&r1).is_ok());
         assert!(schema.validate(&r2).is_ok());
-        assert_eq!(batch.updates[0].key(&schema), &Value::Int(3));
+        assert_eq!(batch.updates[0].key(&schema), Some(&Value::Int(3)));
     }
 
     #[test]
     fn new_is_empty() {
         let b = ChangeBatch::new(Lsn(1));
-        assert!(b.is_empty());
         assert_eq!(b.lsn, Lsn(1));
+        assert!(b.inserts.is_empty() && b.updates.is_empty() && b.deletes.is_empty());
     }
 }
