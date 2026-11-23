@@ -8,6 +8,7 @@ Facet stores every change once in an ordered log and maintains several physical 
 - Eight member crates, no more: `crates/{core,log,delta,layouts,planner,engine,check,bench}`.
 - Package names are `facet-<dir>` (`facet-core`, `facet-log`, ...). Never name a package `core` (shadows Rust's built-in `core` crate) or `log` (clashes with the crates.io `log` crate). Directory names stay as in the spec.
 - Every crate inherits `version.workspace = true` and `edition.workspace = true` (edition 2021, resolver 2).
+- `docs/solutions/<slug>.md` holds one compound doc per finished feature (YAML frontmatter `categories`, `tags`; sections Problem, Solution, What Worked, What Did Not Work, Prevention, Key Code References). It is relevant when working in an area an earlier feature touched.
 
 ## Dependency rules
 
