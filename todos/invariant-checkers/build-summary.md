@@ -1,7 +1,7 @@
 # Invariant checkers — build summary
 
 - Branch: `feature/invariant-checkers`; base `main` @ d9273e2 (PR #1 and PR #2 merged). Worktree: `facetDB-feature-invariant-checkers` (reused; no `../invariant-checkers-work`).
-- Commits (main..HEAD): locked acceptance tests + plan; `invariants` module; docs (CLAUDE.md section, decisions, this summary).
+- Commits (main..HEAD): locked acceptance tests + plan; `invariants` module; docs (CLAUDE.md section, decisions, this summary); simplify pass (`check_same_rows` walks key runs over one sorted list: no per-key allocation, unstable sort).
 - Plan: `docs/invariant-checkers/plan.md`. Decisions: `todos/invariant-checkers/decisions.md`.
 
 ## Pre-merge verification
@@ -21,11 +21,11 @@
 | `AckEvent`, `Violation` (Debug, Clone, PartialEq, Display; also `Error`) | `crates/core/src/invariants.rs:26`, `:35`, `:142` |
 | `check_ack_after_durable` | `invariants.rs:147` |
 | `check_watermarks` | `invariants.rs:168` |
-| `check_same_rows` (by key, bitwise floats, duplicates differ) | `invariants.rs:197`, helpers `:313`-`:360` |
-| `check_segments_unchanged`, `segment_digest` (FNV-1a 64) | `invariants.rs:242`, `:265` |
-| `check_batch_sizes` | `invariants.rs:277` |
-| One pass + one fail per variant | `invariants.rs:363` onward; Display tested for every variant with an exhaustiveness guard at `:750` |
-| One proptest per checker | `invariants.rs:958` |
+| `check_same_rows` (by key, bitwise floats, duplicates differ) | `invariants.rs:197`, helpers `:309`-`:362` |
+| `check_segments_unchanged`, `segment_digest` (FNV-1a 64) | `invariants.rs:241`, `:264` |
+| `check_batch_sizes` | `invariants.rs:276` |
+| One pass + one fail per variant | `invariants.rs:365` onward; Display tested for every variant with an exhaustiveness guard at `:752` |
+| One proptest per checker | `invariants.rs:960` |
 | Module doc table | `invariants.rs:1`-`:17` |
 | CLAUDE.md "Invariant checkers" section | `CLAUDE.md:33`-`:44` |
 

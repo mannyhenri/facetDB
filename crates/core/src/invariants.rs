@@ -195,33 +195,32 @@ pub fn check_watermarks(observations: &[(Lsn, Lsn)]) -> Result<(), Violation> {
 /// matches NaN and `0.0` does not match `-0.0`. A key that appears more than once on either
 /// side counts as different. A row too short to have a key is keyed by `Value::Null`.
 pub fn check_same_rows(schema: &Schema, a: &[Row], b: &[Row]) -> Result<(), Violation> {
-    let a = groups_by_key(schema, a);
-    let b = groups_by_key(schema, b);
+    let a = sorted_by_key(schema, a);
+    let b = sorted_by_key(schema, b);
     let (mut only_in_a, mut only_in_b, mut different) = (Vec::new(), Vec::new(), Vec::new());
     let (mut i, mut j) = (0, 0);
     while i < a.len() || j < b.len() {
         let order = match (a.get(i), b.get(j)) {
-            (Some(ga), Some(gb)) => cmp_values(ga.0, gb.0),
+            (Some(ka), Some(kb)) => cmp_values(ka.0, kb.0),
             (Some(_), None) => Ordering::Less,
             _ => Ordering::Greater,
         };
         match order {
             Ordering::Less => {
                 only_in_a.push(a[i].0.clone());
-                i += 1;
+                i = run_end(&a, i);
             }
             Ordering::Greater => {
                 only_in_b.push(b[j].0.clone());
-                j += 1;
+                j = run_end(&b, j);
             }
             Ordering::Equal => {
-                let (key, ra) = &a[i];
-                let rb = &b[j].1;
-                if ra.len() != 1 || rb.len() != 1 || !rows_equal(ra[0], rb[0]) {
-                    different.push((*key).clone());
+                let (end_a, end_b) = (run_end(&a, i), run_end(&b, j));
+                let single = end_a - i == 1 && end_b - j == 1;
+                if !single || !rows_equal(a[i].1, b[j].1) {
+                    different.push(a[i].0.clone());
                 }
-                i += 1;
-                j += 1;
+                (i, j) = (end_a, end_b);
             }
         }
     }
@@ -309,21 +308,24 @@ pub fn check_batch_sizes(sizes: &[usize], available: usize) -> Result<(), Violat
 
 static MISSING_KEY: Value = Value::Null;
 
-/// Rows grouped by primary key, groups sorted by key, rows in input order within a group.
-fn groups_by_key<'r>(schema: &Schema, rows: &'r [Row]) -> Vec<(&'r Value, Vec<&'r Row>)> {
+/// Rows paired with their primary key, sorted by key.
+fn sorted_by_key<'r>(schema: &Schema, rows: &'r [Row]) -> Vec<(&'r Value, &'r Row)> {
     let mut keyed: Vec<(&Value, &Row)> = rows
         .iter()
         .map(|row| (row.key(schema).unwrap_or(&MISSING_KEY), row))
         .collect();
-    keyed.sort_by(|x, y| cmp_values(x.0, y.0));
-    let mut groups: Vec<(&Value, Vec<&Row>)> = Vec::new();
-    for (key, row) in keyed {
-        match groups.last_mut() {
-            Some((k, group)) if cmp_values(k, key).is_eq() => group.push(row),
-            _ => groups.push((key, vec![row])),
-        }
-    }
-    groups
+    keyed.sort_unstable_by(|x, y| cmp_values(x.0, y.0));
+    keyed
+}
+
+/// The index just past the run of rows that share the key at `start`.
+fn run_end(sorted: &[(&Value, &Row)], start: usize) -> usize {
+    let key = sorted[start].0;
+    start
+        + sorted[start..]
+            .iter()
+            .take_while(|(k, _)| cmp_values(k, key).is_eq())
+            .count()
 }
 
 fn rows_equal(a: &Row, b: &Row) -> bool {
