@@ -4,6 +4,7 @@
 mod bitmap;
 mod change;
 mod column;
+pub mod invariants;
 mod lsn;
 mod row;
 mod schema;
