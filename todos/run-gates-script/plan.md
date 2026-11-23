@@ -12,8 +12,8 @@ No Phase 2 plan doc exists (`docs/run-gates-script/plan.md`); the scope brief is
 ## Steps
 
 1. **Commit the locked tests and this plan** unchanged on the feature branch.
-2. **Extra failing tests** outside `acceptance/` (`scripts/test-run-gates.sh`, which proves the
-   script from throwaway clones): a listed acceptance directory that is missing or has no
+2. **Extra failing tests** outside `acceptance/` (`scripts/run-gates.test.mjs`, Node test runner like the rest of the repo, which runs the
+   script in throwaway fixture repos with a fake `cargo`): a listed acceptance directory that is missing or has no
    `*.test.mjs` is a FAIL (not a skip); missing `cargo` or `node` (or node < 18) exits 2;
    phases 1-7 print `phase N gate is not defined yet` and exit 2; a failing nested
    `node --test` is still a FAIL when `NODE_TEST_CONTEXT` is set in the environment.
