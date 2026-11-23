@@ -6,7 +6,7 @@
 
 ## Pre-merge verification
 
-- **Tests:** 31 passing / 0 failing with `cargo test --workspace` (facet-core 24, including the from_rows → to_rows proptest; 1 each in bench, check, delta, engine, log, planner; 0 in layouts). Acceptance: 15 passing / 0 failing across the three locked `acceptance/core-data-types` files and `acceptance/cargo-workspace/ac-1-scaffold-runs`.
+- **Tests:** 30 passing / 0 failing with `cargo test --workspace` (facet-core 24, including the from_rows → to_rows proptest; 1 each in bench, check, delta, engine, log, planner; 0 in layouts). Acceptance: 15 passing / 0 failing across the three locked `acceptance/core-data-types` files and `acceptance/cargo-workspace/ac-1-scaffold-runs`.
 - **Type check:** clean, `cargo check --workspace --all-targets` (0 errors, 0 warnings).
 - **Lint:** clean, `cargo clippy --workspace --all-targets -- -D warnings` (0 issues) and `cargo fmt --all --check`.
 - **Coverage:** not measured as a percentage, because no coverage tool (cargo-llvm-cov, tarpaulin) is installed and the project sets no threshold. A manual audit found that every public function and every private helper in `crates/core/src` is exercised by a unit or acceptance test. The only line never reached is the defensive `unreachable!` arm at `column.rs:48`. The three error `Display` impls were the last gap; they gained tests in this step (`schema.rs` `errors_display_readably`, `column.rs` `from_rows_rejects_an_invalid_row`).
