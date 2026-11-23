@@ -72,4 +72,51 @@ mod tests {
         assert!(Value::Null.fits(DataType::Str, true));
         assert!(!Value::Null.fits(DataType::Str, false));
     }
+
+    /// One non-null sample per data type, index-aligned with `ALL_TYPES`.
+    fn samples() -> Vec<Value> {
+        vec![
+            Value::Int(1),
+            Value::Float(1.0),
+            Value::Str("a".into()),
+            Value::Bytes(vec![1]),
+            Value::Vector(vec![0.0; 4]),
+        ]
+    }
+
+    const ALL_TYPES: [DataType; 5] = [
+        DataType::Int,
+        DataType::Float,
+        DataType::Str,
+        DataType::Bytes,
+        DataType::Vector { dim: 4 },
+    ];
+
+    // Fails to compile when a DataType variant is added, so ALL_TYPES must be updated.
+    #[allow(dead_code)]
+    fn all_types_is_exhaustive(t: DataType) {
+        match t {
+            DataType::Int | DataType::Float | DataType::Str | DataType::Bytes => {}
+            DataType::Vector { .. } => {}
+        }
+    }
+
+    #[test]
+    fn fits_exactly_the_matching_type_for_every_kind() {
+        for (i, value) in samples().iter().enumerate() {
+            for (j, &t) in ALL_TYPES.iter().enumerate() {
+                for nullable in [false, true] {
+                    assert_eq!(
+                        value.fits(t, nullable),
+                        i == j,
+                        "{value:?} in {t:?} (nullable: {nullable})"
+                    );
+                }
+            }
+        }
+        for t in ALL_TYPES {
+            assert!(Value::Null.fits(t, true), "Null in nullable {t:?}");
+            assert!(!Value::Null.fits(t, false), "Null in non-nullable {t:?}");
+        }
+    }
 }

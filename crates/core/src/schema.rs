@@ -321,6 +321,40 @@ mod tests {
     }
 
     #[test]
+    fn primary_key_accepts_exactly_non_nullable_int_str_bytes() {
+        // (type, accepted as a non-nullable key). A nullable key is never accepted.
+        let cases = [
+            (DataType::Int, true),
+            (DataType::Float, false),
+            (DataType::Str, true),
+            (DataType::Bytes, true),
+            (DataType::Vector { dim: 4 }, false),
+        ];
+        // Fails to compile when a DataType variant is added, so `cases` must be updated.
+        let _exhaustive = |t: DataType| match t {
+            DataType::Int | DataType::Float | DataType::Str | DataType::Bytes => {}
+            DataType::Vector { .. } => {}
+        };
+        let mut accepted = 0;
+        for (t, key_ok) in cases {
+            for nullable in [false, true] {
+                let result = Schema::new(vec![Column::new("k", t, nullable)], ColId(0));
+                if key_ok && !nullable {
+                    assert!(result.is_ok(), "{t:?} must be accepted as a key");
+                    accepted += 1;
+                } else {
+                    assert_eq!(
+                        result,
+                        Err(SchemaError::InvalidPrimaryKey(ColId(0))),
+                        "{t:?} (nullable: {nullable}) must be rejected as a key"
+                    );
+                }
+            }
+        }
+        assert_eq!(accepted, 3);
+    }
+
+    #[test]
     fn new_rejects_bad_primary_keys_and_duplicate_names() {
         let cols = || {
             vec![
