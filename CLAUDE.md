@@ -30,6 +30,19 @@ Facet stores every change once in an ordered log and maintains several physical 
 - `BATCH_ROWS = 1024` is the target batch size. Calls across the layout contract carry at least 1,024 rows when that many are available, and `ColumnBatch` has no row cap.
 - `Fragment`, `Bid`, `Stats` and the `Layout` trait do not exist yet; they come with the "Layout contract" feature (Phase 3). Details and rationale: `docs/solutions/core-data-types.md`.
 
+## Invariant checkers
+
+- `crates/core/src/invariants.rs` holds one checker per section 2 invariant. They take plain observations (LSN traces, `(watermark, last_durable)` pairs, row slices, `(segment id, digest)` pairs, batch sizes) and return `Result<(), Violation>`. Import them by module path, `facet_core::invariants::{check_watermarks, Violation, ...}`: `invariants` is the one public module in core.
+- **Rule:** the feature that owns an invariant writes its invariant test first, by calling its checker, before writing the code the test guards. Do not write a second checker for the same invariant; extend this one.
+
+| Invariant | Checker | Feature that writes the real test first | Phase |
+|---|---|---|---|
+| Ack only after the log record is durable | `check_ack_after_durable` | Group commit / Log API | 1 |
+| Watermark never moves backwards or past last durable LSN | `check_watermarks` | Background applier | 3 |
+| Same rows at snapshot S from every layout | `check_same_rows` | Merged base-plus-delta read, then column and vector layouts | 3, then 4–5 |
+| Base segments are immutable | `check_segments_unchanged` + `segment_digest` | Row layout with sorted runs, then Column segments | 3, then 4 |
+| At least 1,024 rows per batch when available | `check_batch_sizes` | Layout contract | 3 |
+
 ## Commands
 
 - Build: `cargo build --workspace`
