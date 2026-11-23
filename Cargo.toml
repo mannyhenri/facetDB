@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/log",
+    "crates/delta",
+    "crates/layouts",
+    "crates/planner",
+    "crates/engine",
+    "crates/check",
+    "crates/bench",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+[workspace.dependencies]
+facet-core = { path = "crates/core" }
+facet-log = { path = "crates/log" }
+facet-delta = { path = "crates/delta" }
+facet-layouts = { path = "crates/layouts" }
+facet-planner = { path = "crates/planner" }
+facet-engine = { path = "crates/engine" }
+criterion = "0.5"
+proptest = "1"

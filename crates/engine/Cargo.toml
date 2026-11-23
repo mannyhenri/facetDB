@@ -1,0 +1,11 @@
+[package]
+name = "facet-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+facet-core.workspace = true
+facet-log.workspace = true
+facet-delta.workspace = true
+facet-layouts.workspace = true
+facet-planner.workspace = true

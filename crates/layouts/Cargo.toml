@@ -1,0 +1,8 @@
+[package]
+name = "facet-layouts"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+facet-core.workspace = true
+facet-delta.workspace = true
