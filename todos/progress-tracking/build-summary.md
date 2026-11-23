@@ -4,44 +4,39 @@
   `feature/run-gates-script` @ 4ab9225 (neither `facet-gen.rs` nor `run_gates.sh` is on `main`).
 - Plan: `todos/progress-tracking/plan.md`.
 
-## BLOCKED: locked tests contradict each other
+## Resolved blocker: conflicting locked tests
 
-`acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs:155-162` (locked by the cargo-workspace
-feature, commit 3c6678f) asserts "PROGRESS.md and REPORT.md are title-only placeholders"
-(`lines.length === 1`). This feature's locked AC-1 requires Schedule, Decisions and Gates sections in
-PROGRESS.md, and the brief requires `./run_gates.sh 0` to stay green and the real Phase 0 gate to be
-recorded. Both cannot hold:
+`acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` (locked by cargo-workspace, 3c6678f)
+asserted "PROGRESS.md and REPORT.md are title-only placeholders", which contradicted this feature's
+locked AC-1. The first three pipeline attempts stopped on it (the Run Tests gate failed after 2
+retries). The person then asked to "do what's needed", and that one test case was amended to check
+REPORT.md only (d4abc1c, person-approved; its comment records why). This feature's locked files
+were not touched.
 
-- `./run_gates.sh 0` in this checkout: 19 of 20 checks PASS, `FAIL
-  acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` ("PROGRESS.md must contain a title line
-  only", 24 !== 1), `phase 0: FAIL (1 of 20 checks failed)`.
-- Locked run-gates tests from fresh clones at ece2962: AC-1 fail (same cause), AC-2 pass 1 / fail 1
-  (case b expects exactly one failing check, now two), AC-3 pass.
-- Therefore step 8 (record the real Phase 0 gate) was NOT done: `scripts/record_gate.sh 0` refuses
-  to record a failing gate by design, and recording by hand is forbidden.
+## Phase 0 gate (recorded)
 
-Workarounds rejected: removing `cargo-workspace` from the phase 0 list breaks the locked run-gates
-AC-1 (it requires every cargo-workspace file to PASS); keeping PROGRESS.md title-only breaks this
-feature's locked AC-1. Editing any locked file is not allowed.
+`scripts/record_gate.sh 0 --decision …` (8 decisions) → gate `phase 0: PASS (20 checks; cargo test:
+87 passed, 0 failed)`, commit **2ac7c42 `Phase 0: gate passed`** (changes only PROGRESS.md). Time
+spent 2086 min (from the repo's first commit, as the brief defines Phase 0). Decisions recorded,
+each with its source: facet-<dir> package names; Value PartialEq only; null placeholders + validity
+bits; public facet_core::invariants with bitwise float comparison; per-row seeds; CSV + raw f32;
+non-cumulative gates with undefined phases exiting 2; rebuilt schedule.
 
-Needed from the person: unlock `acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` and change
-that one test case to check REPORT.md only (PROGRESS.md was a placeholder until this feature). Then
-re-run `./run_gates.sh 0`, record Phase 0 with `scripts/record_gate.sh 0 --decision …`, and re-run
-the locked run-gates tests.
-
-## Results at 0855b6c
+## Results at 2ac7c42 (clean tree)
 
 | Suite | Result |
 |---|---|
 | Locked AC-1 `ac-1-schedule-and-decisions.test.mjs` | pass 1, fail 0 |
 | Locked AC-2 `ac-2-record-passed-gate.test.mjs` | pass 2, fail 0 |
 | Locked AC-3 `ac-3-overrun-requires-cut.test.mjs` | pass 2, fail 0 |
-| `scripts/record-gate.test.mjs` | pass 17, fail 1 ("the real Phase 0 gate is recorded and committed": blocked) |
+| Locked run-gates-script AC-1 / AC-2 / AC-3 (fresh clones) | 1/1, 2/2, 1/1 |
+| `acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` | pass 8, fail 0 |
+| `scripts/record-gate.test.mjs` | pass 18, fail 0 |
 | `scripts/run-gates.test.mjs` | pass 16, fail 0 |
-| `cargo test --workspace` | 87 passed, 0 failed |
-| `./run_gates.sh 0` | exit 1, 19/20 PASS (cargo-workspace title-only check) |
+| `./run_gates.sh 0` | exit 0, 20 PASS, `phase 0: PASS`; cargo test 87 passed, 0 failed |
 
-Lint: `shellcheck` clean on `run_gates.sh` and `scripts/record_gate.sh`; `bash -n` (3.2) clean.
+Node test total (summed by script): 51 passed, 0 failed. `shellcheck run_gates.sh
+scripts/record_gate.sh` clean.
 
 ## Files changed (vs 4ab9225)
 
@@ -51,6 +46,7 @@ Lint: `shellcheck` clean on `run_gates.sh` and `scripts/record_gate.sh`; `bash -
 - `scripts/record-gate.test.mjs` (new, 18 tests), `scripts/run-gates.test.mjs` (2 counts tests,
   phase 0 fixture includes progress-tracking)
 - `acceptance/progress-tracking/*` (4 locked files, unchanged)
+- `acceptance/cargo-workspace/ac-1-scaffold-runs.test.mjs` (one test case amended, person-approved, d4abc1c)
 - `todos/progress-tracking/{plan.md,build-summary.md}`
 
 ## Deviations
@@ -66,4 +62,4 @@ Lint: `shellcheck` clean on `run_gates.sh` and `scripts/record_gate.sh`; `bash -
    (8-9 have no gate), live gate output via `tee` + `PIPESTATUS`. Skipped: removing the
    `NODE_TEST_CONTEXT` unset (a unit test pins it), merging the decision/entry loops, and five
    efficiency notes (negligible at this size).
-5. Step 8 not done (blocked, above).
+5. The locked cargo-workspace title-only check was amended (person-approved) so Phase 0 could be recorded.
