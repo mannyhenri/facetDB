@@ -11,7 +11,7 @@ mod value;
 
 pub use bitmap::Bitmap;
 pub use change::ChangeBatch;
-pub use column::{BatchError, ColumnBatch, ColumnData};
+pub use column::{BatchError, ColumnBatch, ColumnData, SelectionMut};
 pub use lsn::Lsn;
 pub use row::Row;
 pub use schema::{ColId, Column, RowError, Schema, SchemaError};

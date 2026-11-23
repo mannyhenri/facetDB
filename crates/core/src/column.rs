@@ -1,6 +1,7 @@
 //! Column batches: the same rows stored as one typed array per column.
 
 use std::fmt;
+use std::ops::Deref;
 
 use crate::bitmap::Bitmap;
 use crate::row::Row;
@@ -82,6 +83,32 @@ pub struct ColumnBatch {
     selection: Bitmap,
 }
 
+/// Mutable access to a batch's selection that can flip bits but never replace the
+/// bitmap, so the selection always has exactly one bit per row. Reads go through `Deref`.
+///
+/// ```compile_fail
+/// # use facet_core::{Bitmap, ColId, Column, ColumnBatch, DataType, Schema};
+/// let schema = Schema::new(vec![Column::new("id", DataType::Int, false)], ColId(0)).unwrap();
+/// let mut batch = ColumnBatch::from_rows(&schema, &[]).unwrap();
+/// *batch.selection_mut() = Bitmap::all_set(4);
+/// ```
+pub struct SelectionMut<'a>(&'a mut Bitmap);
+
+impl SelectionMut<'_> {
+    /// Selects (`true`) or deselects row `i`. Panics if `i` is not a row of the batch.
+    pub fn set(&mut self, i: usize, selected: bool) {
+        self.0.set(i, selected);
+    }
+}
+
+impl Deref for SelectionMut<'_> {
+    type Target = Bitmap;
+
+    fn deref(&self) -> &Bitmap {
+        self.0
+    }
+}
+
 /// A row given to `ColumnBatch::from_rows` did not match the schema.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BatchError {
@@ -159,8 +186,9 @@ impl ColumnBatch {
         &self.selection
     }
 
-    pub fn selection_mut(&mut self) -> &mut Bitmap {
-        &mut self.selection
+    /// Lets the caller select or deselect rows; the selection keeps one bit per row.
+    pub fn selection_mut(&mut self) -> SelectionMut<'_> {
+        SelectionMut(&mut self.selection)
     }
 
     fn value(&self, column: usize, row: usize) -> Value {
@@ -242,6 +270,18 @@ mod tests {
         let mut expected = input;
         expected.remove(3);
         assert_eq!(batch.to_rows(), expected);
+    }
+
+    #[test]
+    fn selection_mut_flips_bits_without_changing_length() {
+        let mut batch = ColumnBatch::from_rows(&schema(DIM), &rows(10)).unwrap();
+        let mut selection = batch.selection_mut();
+        selection.set(0, false);
+        selection.set(9, false);
+        assert_eq!((selection.len(), selection.count_ones()), (10, 8));
+        assert!(!selection.get(0) && selection.get(1));
+        assert_eq!(batch.len(), 10);
+        assert_eq!(batch.to_rows().len(), 8);
     }
 
     #[test]
