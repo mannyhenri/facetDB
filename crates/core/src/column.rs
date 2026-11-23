@@ -263,6 +263,7 @@ mod tests {
         input[2].0[0] = Value::Str("x".into());
         let err = ColumnBatch::from_rows(&schema(DIM), &input).unwrap_err();
         assert_eq!(err.row, 2);
+        assert_eq!(err.to_string(), "row 2: column 0: expected Int, got Str");
         assert!(matches!(
             err.error,
             RowError::Mismatch {

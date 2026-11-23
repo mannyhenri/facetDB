@@ -277,6 +277,50 @@ mod tests {
     }
 
     #[test]
+    fn errors_display_readably() {
+        assert_eq!(
+            RowError::Mismatch {
+                column: ColId(2),
+                expected: DataType::Float,
+                nullable: true,
+                actual: Some(DataType::Str),
+            }
+            .to_string(),
+            "column 2: expected Float (nullable), got Str"
+        );
+        assert_eq!(
+            RowError::Mismatch {
+                column: ColId(0),
+                expected: DataType::Int,
+                nullable: false,
+                actual: None,
+            }
+            .to_string(),
+            "column 0: expected Int, got Null"
+        );
+        assert_eq!(
+            RowError::Arity {
+                expected: 5,
+                actual: 4
+            }
+            .to_string(),
+            "row has 4 values, schema has 5 columns"
+        );
+        assert_eq!(
+            SchemaError::DuplicateName("id".into()).to_string(),
+            "duplicate column name \"id\""
+        );
+        assert_eq!(
+            SchemaError::PrimaryKeyOutOfRange(ColId(3)).to_string(),
+            "primary key column 3 does not exist"
+        );
+        assert_eq!(
+            SchemaError::InvalidPrimaryKey(ColId(1)).to_string(),
+            "primary key column 1 must be a non-nullable Int, Str or Bytes column"
+        );
+    }
+
+    #[test]
     fn new_rejects_bad_primary_keys_and_duplicate_names() {
         let cols = || {
             vec![
