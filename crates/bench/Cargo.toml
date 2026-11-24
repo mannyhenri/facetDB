@@ -13,3 +13,7 @@ criterion.workspace = true
 [[bench]]
 name = "placeholder"
 harness = false
+
+[[bin]]
+name = "facet-gen"
+path = "src/bin/facet-gen.rs"

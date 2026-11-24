@@ -152,8 +152,10 @@ test('AC-1: crate sources — doc comments, layouts modules, unit tests', () => 
   }
 });
 
-test('AC-1: PROGRESS.md and REPORT.md are title-only placeholders', () => {
-  for (const f of ['PROGRESS.md', 'REPORT.md']) {
+// PROGRESS.md left this check when the progress-tracking feature filled it in (amendment approved by
+// the person, 2026-11-23). REPORT.md stays a placeholder until the benchmark report feature.
+test('AC-1: REPORT.md is a title-only placeholder', () => {
+  for (const f of ['REPORT.md']) {
     assert.ok(existsSync(join(ROOT, f)), `${f} missing`);
     const lines = read(f).trim().split(/\r?\n/);
     assert.equal(lines.length, 1, `${f} must contain a title line only`);

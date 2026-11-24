@@ -1,4 +1,7 @@
-//! Benchmarks for the Facet engine.
+//! Benchmarks for the Facet engine: deterministic data generators and benchmark runners.
+
+pub mod cli;
+pub mod datagen;
 
 #[cfg(test)]
 mod tests {
